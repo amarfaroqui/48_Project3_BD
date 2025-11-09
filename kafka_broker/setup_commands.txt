@@ -1,0 +1,42 @@
+This document provides all the necessary commands to configure, run, and verify the Apache Kafka broker on the designated Broker Machine.
+Prerequisites
+* Java JDK is installed.
+* Apache Kafka binaries have been downloaded and extracted (e.g., into kafka_2.13-3.6.1/).
+* The Broker machine has joined the team's ZeroTier network and its ZeroTier IP is known.
+Phase 1: Configuration
+Navigate to your Kafka installation directory.
+# Replace with your actual Kafka folder name
+cd kafka_2.13-3.6.1/
+
+Edit the main server configuration file.
+nano config/server.properties
+
+Inside the editor, find and modify the following two lines. This is the most critical step to allow other machines to connect.
+# Listen on all available network interfaces
+listeners=PLAINTEXT://0.0.0.0:9092
+
+# Announce the machine's ZeroTier IP to all clients
+# Replace <YOUR_ZEROTIER_IP> with the actual ZeroTier IP of the Broker machine
+advertised.listeners=PLAINTEXT://172.25.187.130:9092
+
+Phase 2: Starting Services
+Important: Services must be started in the correct order. Keep each command running in a separate terminal.
+1. Start ZooKeeper (Terminal 1)
+bin/zookeeper-server-start.sh config/zookeeper.properties
+
+2. Start Kafka Broker (Terminal 2)
+bin/kafka-server-start.sh config/server.properties
+
+Phase 3: Creating Topics
+Run these commands from a third terminal to create the four required data topics.
+# 1. Tasks topic (2 partitions for 2 workers)
+bin/kafka-topics.sh --create --topic tasks --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
+
+# 2. Results topic
+bin/kafka-topics.sh --create --topic results --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+# 3. Heartbeats topic
+bin/kafka-topics.sh --create --topic heartbeats --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+Phase 4: Stopping Services
+To stop the services, go to the terminals where ZooKeeper and the Kafka Broker are running and press Ctrl+C.
