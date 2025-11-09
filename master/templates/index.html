@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Image Processor</title>
+    <style>
+        :root { --primary: #007bff; --success: #28a745; --bg: #f8f9fa; --dark: #343a40; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--dark); display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        .container { background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 2rem; width: 100%; max-width: 500px; margin-bottom: 20px; }
+        h1, h2 { margin-top: 0; }
+        .status-card { background: #e9ecef; padding: 1rem; border-radius: 6px; margin-bottom: 2rem; }
+        .worker-badge { display: inline-block; background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px; }
+        .file-label { border: 2px dashed #dee2e6; padding: 2rem; text-align: center; cursor: pointer; display: block; margin-bottom: 1rem; }
+        .btn { background: var(--primary); color: white; border: none; padding: 0.75rem; width: 100%; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #result-area img { max-width: 100%; border-radius: 6px; margin-top: 10px; }
+        #download-btn { display: block; background: var(--success); color: white; text-align: center; padding: 10px; text-decoration: none; border-radius: 6px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🖥️ System Status</h2>
+        <div class="status-card">
+            <strong>Active Workers: </strong> <span id="worker-count">0</span>
+            <div id="worker-list" style="margin-top: 10px;">
+                Waiting for heartbeats...
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>📸 Upload Image</h1>
+        <form id="upload-form">
+            <label for="image-input" class="file-label">
+                <span id="file-text">Click to choose image</span>
+            </label>
+            <input type="file" name="image" id="image-input" style="display:none" required>
+            <button type="submit" class="btn">Process Image</button>
+        </form>
+
+        <div id="job-status-area" style="display:none; margin-top: 20px;">
+            <h3>Job Progress</h3>
+            <div class="loader" id="loader"></div>
+            <p align="center"><span id="status-text">Waiting...</span></p>
+            <div id="result-area"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. System Monitor (Polls every 2 seconds) ---
+        setInterval(async () => {
+            try {
+                const res = await fetch('/workers');
+                const data = await res.json();
+                document.getElementById('worker-count').textContent = data.active_count;
+                
+                const listDiv = document.getElementById('worker-list');
+                if (data.active_count === 0) {
+                    listDiv.innerHTML = "No workers active. Is worker.py running?";
+                } else {
+                    listDiv.innerHTML = data.workers.map(id => 
+                        `<span class="worker-badge">🟢 ${id}</span>`
+                    ).join(' ');
+                }
+            } catch (e) { console.error("Monitor error:", e); }
+        }, 2000);
+
+        // --- 2. Upload & Job Polling ---
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('image-input');
+        fileInput.addEventListener('change', () => document.getElementById('file-text').textContent = fileInput.files[0]?.name || 'Choose image');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('job-status-area').style.display = 'block';
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('status-text').textContent = 'Uploading...';
+            document.getElementById('result-area').innerHTML = '';
+
+            try {
+                const res = await fetch('/upload', { method:'POST', body: new FormData(form) });
+                const data = await res.json();
+                if (data.job_id) pollJob(data.job_id);
+            } catch (e) { document.getElementById('status-text').textContent = "Upload failed."; }
+        });
+
+        function pollJob(jobId) {
+            const interval = setInterval(async () => {
+                const res = await fetch(`/status/${jobId}`);
+                const data = await res.json();
+                if (data.status === 'processing') {
+                    document.getElementById('status-text').textContent = `Processing: ${data.tiles_processed} / ${data.total_tiles} tiles`;
+                } else if (data.status === 'complete') {
+                    clearInterval(interval);
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('status-text').textContent = '✅ Complete!';
+                    document.getElementById('result-area').innerHTML = `
+                        <a id="download-btn" href="/result/${jobId}" target="_blank">Download Result</a>
+                        <img src="/result/${jobId}">
+                    `;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
