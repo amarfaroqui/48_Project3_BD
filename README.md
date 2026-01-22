@@ -2,7 +2,7 @@
 
 ---
 
-## 🧠 Overview
+## Overview
 This project implements a **Distributed Image Processing Pipeline** using **Apache Kafka** to perform real-time, parallel image transformations across multiple nodes.  
 The **master node** accepts an uploaded image, divides it into tiles, and distributes each tile as a task message through Kafka.  
 Each **worker node** processes its assigned tiles (e.g., grayscale conversion) and returns the processed results to the master node.  
@@ -10,7 +10,7 @@ Finally, the master reassembles all processed tiles into the complete image.
 
 ---
 
-## ⚙️ System Architecture (4 Nodes)
+## System Architecture (4 Nodes)
 
 ### 🟩 Node 1 — Client & Master
 - Built using **Flask** (web UI + REST endpoints).  
@@ -50,7 +50,7 @@ Finally, the master reassembles all processed tiles into the complete image.
 
 ---
 
-## 🚀 How to Run
+## How to Run
 
 ### Step 1️⃣ — Start Kafka Broker (Node 2)
 ```bash
